@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Color Prediction Demo</title>
+    <style>
+        body { font-family: Arial; background:#111; color:white; text-align:center; }
+        .wallet { margin:10px; font-size:18px; }
+        .timer { font-size:10px; margin:15px; }
+        .colors button {
+            padding:15px 25px;
+            margin:10px;
+            font-size:18px;
+            border:none;
+            border-radius:8px;
+            cursor:pointer;
+        }
+        .red { background:red; color:white; }
+        .green { background:green; color:white; }
+        .violet { background:purple; color:white; }
+        .result { margin-top:20px; font-size:22px; }
+    </style>
+</head>
+<body>
+
+    <h1>🎮 Color Prediction Game (Demo)</h1>
+
+    <div class="wallet">Wallet: <span id="wallet">100</span> Coins</div>
+    <div class="timer">Time Left: <span id="time">30</span>s</div>
+
+    <div class="colors">
+        <button class="red" onclick="placeBet('Red')">Red</button>
+        <button class="green" onclick="placeBet('Green')">Green</button>
+        <button class="violet" onclick="placeBet('Violet')">Violet</button>
+    </div>
+
+    <div class="result" id="result">Place your prediction!</div>
+
+<script>
+let timeLeft = 90;
+let wallet = 1000;
+let selectedColor = null;
+
+function placeBet(color){
+    selectedColor = color;
+    document.getElementById("result").innerText = "You selected: " + color;
+}
+
+function startTimer(){
+    setInterval(() => {
+        timeLeft--;
+        document.getElementById("time").innerText = timeLeft;
+
+        if(timeLeft <= 0){
+            runRound();
+            timeLeft = 30;
+        }
+    }, 1000);
+}
+
+function runRound(){
+    const colors = ["Red", "Green", "Violet"];
+    const result = colors[Math.floor(Math.random() * colors.length)];
+
+    if(selectedColor === result){
+        wallet += 200;
+        document.getElementById("result").innerText = "Result: " + result + " 🎉 You Won!";
+    } else {
+        wallet -= 100;
+        document.getElementById("result").innerText = "Result: " + result + " ❌ You Lost!";
+    }
+
+    document.getElementById("wallet").innerText = wallet;
+    selectedColor = null;
+}
+
+startTimer();
+</script>
+
+</body>
+</html>
