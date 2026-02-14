@@ -1,79 +1,487 @@
+<script>
+
+let balance = localStorage.getItem("balance") ? 
+parseFloat(localStorage.getItem("balance")) : 1000000;
+
+let transactions = JSON.parse(localStorage.getItem("transactions")) || [];
+let tempPayment = null;
+let enteredPin = "";
+
+if(localStorage.getItem("loggedIn")==="true"){
+showScreen("home");
+}
+
+document.getElementById("balance").innerText = balance;
+
+function showScreen(id){
+document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+document.getElementById(id).classList.add("active");
+}
+
+function login(){
+let user = document.getElementById("username").value;
+let pass = document.getElementById("password").value;
+
+if(user==="GOD" && pass==="1234"){
+localStorage.setItem("loggedIn","true");
+showScreen("home");
+}else{
+alert("Use user / 1234");
+}
+}
+
+function logout(){
+localStorage.removeItem("loggedIn");
+showScreen("login");
+}
+
+function makePayment(){
+
+let receiver = document.getElementById("receiver").value;
+let upi = document.getElementById("upi").value;
+let amount = parseFloat(document.getElementById("amount").value);
+
+if(!receiver || !upi || !amount){
+alert("Fill all fields");
+return;
+}
+
+if(amount > balance){
+alert("Insufficient balance");
+return;
+}
+
+tempPayment = {receiver, upi, amount};
+enteredPin = "";
+updateDots();
+showScreen("pinScreen");
+}
+
+function press(num){
+if(enteredPin.length < 4){
+enteredPin += num;
+updateDots();
+}
+
+if(enteredPin.length === 4){
+setTimeout(checkPin,300);
+}
+}
+
+function clearPin(){
+enteredPin = enteredPin.slice(0,-1);
+updateDots();
+}
+
+function cancelPin(){
+enteredPin="";
+updateDots();
+showScreen("send");
+}
+
+function updateDots(){
+for(let i=1;i<=4;i++){
+document.getElementById("d"+i).classList.remove("filled");
+}
+
+for(let i=0;i<enteredPin.length;i++){
+document.getElementById("d"+(i+1)).classList.add("filled");
+}
+}
+
+function checkPin(){
+if(enteredPin==="1234"){
+showScreen("processing");
+setTimeout(completePayment,2000);
+}else{
+alert("Wrong PIN");
+enteredPin="";
+updateDots();
+}
+}
+
+function completePayment(){
+
+balance -= tempPayment.amount;
+localStorage.setItem("balance",balance);
+
+let txnId="TXN"+Math.floor(Math.random()*100000000000);
+let date=new Date().toLocaleString();
+
+let txn={
+receiver:tempPayment.receiver,
+upi:tempPayment.upi,
+amount:tempPayment.amount,
+txnId:txnId,
+date:date
+};
+
+transactions.push(txn);
+localStorage.setItem("transactions",JSON.stringify(transactions));
+
+document.getElementById("sReceiver").innerText=txn.receiver;
+document.getElementById("sUpi").innerText=txn.upi;
+document.getElementById("sAmount").innerText=txn.amount;
+document.getElementById("sTxn").innerText=txn.txnId;
+document.getElementById("sDate").innerText=txn.date;
+
+document.getElementById("balance").innerText=balance;
+
+showScreen("success");
+}
+
+function viewHistory(){
+let list=document.getElementById("historyList");
+list.innerHTML="";
+
+transactions.slice().reverse().forEach(t=>{
+list.innerHTML+=`
+<div class="historyCard">
+<b>${t.receiver}</b> (₹${t.amount})<br>
+${t.upi}<br>
+${t.txnId}<br>
+${t.date}
+</div>`;
+});
+
+showScreen("history");
+}
+
+</script>
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Color Prediction Demo</title>
-    <style>
-        body { font-family: Arial; background:#111; color:white; text-align:center; }
-        .wallet { margin:10px; font-size:18px; }
-        .timer { font-size:10px; margin:15px; }
-        .colors button {
-            padding:15px 25px;
-            margin:10px;
-            font-size:18px;
-            border:none;
-            border-radius:8px;
-            cursor:pointer;
-        }
-        .red { background:red; color:white; }
-        .green { background:green; color:white; }
-        .violet { background:purple; color:white; }
-        .result { margin-top:20px; font-size:22px; }
-    </style>
+<title>EduPay - Demo UPI App</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body{
+margin:0;
+font-family:Arial;
+background:linear-gradient(135deg,#6a11cb,#2575fc);
+display:flex;
+justify-content:center;
+align-items:center;
+height:100vh;
+}
+.app{
+width:360px;
+height:640px;
+background:#111;
+border-radius:25px;
+overflow:hidden;
+color:white;
+padding:20px;
+box-shadow:0 0 30px rgba(0,0,0,0.5);
+}
+.screen{display:none;}
+.active{display:block;}
+h2{text-align:center;}
+input{
+width:100%;
+padding:10px;
+margin:8px 0;
+border-radius:8px;
+border:none;
+}
+button{
+width:100%;
+padding:10px;
+margin:6px 0;
+border:none;
+border-radius:8px;
+cursor:pointer;
+font-weight:bold;
+}
+.primary{background:#7b2cbf;color:white;}
+.success{background:#00c853;color:white;}
+.logout{
+background:#ff5252;
+color:white;
+width:auto;
+padding:6px 10px;
+font-size:12px;
+}
+.topBar{
+display:flex;
+justify-content:space-between;
+align-items:center;
+}
+.card{
+background:#1c1c1c;
+padding:12px;
+border-radius:12px;
+margin-top:10px;
+}
+.historyCard{
+background:#222;
+padding:10px;
+border-radius:10px;
+margin-top:8px;
+font-size:14px;
+}
+
+/* PIN UI */
+.dot{
+display:inline-block;
+width:12px;
+height:12px;
+margin:5px;
+border-radius:50%;
+background:#444;
+}
+.filled{background:#00c853;}
+
+.numpad{
+display:grid;
+grid-template-columns:repeat(3,1fr);
+gap:10px;
+margin-top:15px;
+}
+.numpad button{
+padding:15px;
+font-size:18px;
+border-radius:10px;
+background:#222;
+color:white;
+border:none;
+}
+
+/* Loader */
+.loader{
+border:5px solid #333;
+border-top:5px solid #00c853;
+border-radius:50%;
+width:50px;
+height:50px;
+margin:20px auto;
+animation:spin 1s linear infinite;
+}
+@keyframes spin{
+100%{transform:rotate(360deg);}
+}
+</style>
 </head>
 <body>
 
-    <h1>🎮 Color Prediction Game (Demo)</h1>
+<div class="app">
 
-    <div class="wallet">Wallet: <span id="wallet">100</span> Coins</div>
-    <div class="timer">Time Left: <span id="time">30</span>s</div>
+<!-- LOGIN -->
+<div id="login" class="screen active">
+<h2>EduPay Login</h2>
+<input type="text" id="username" placeholder="Username">
+<input type="password" id="password" placeholder="Password">
+<button class="primary" onclick="login()">Login</button>
+</div>
 
-    <div class="colors">
-        <button class="red" onclick="placeBet('Red')">Red</button>
-        <button class="green" onclick="placeBet('Green')">Green</button>
-        <button class="violet" onclick="placeBet('Violet')">Violet</button>
-    </div>
+<!-- HOME -->
+<div id="home" class="screen">
+<div class="topBar">
+<h3>EduPay</h3>
+<button class="logout" onclick="logout()">Logout</button>
+</div>
+<p><b>Balance:</b> ₹<span id="balance"></span></p>
+<button class="primary" onclick="showScreen('send')">Send Money</button>
+<button onclick="viewHistory()">View History</button>
+</div>
 
-    <div class="result" id="result">Place your prediction!</div>
+<!-- SEND -->
+<div id="send" class="screen">
+<h2>Send Money</h2>
+<input type="text" id="receiver" placeholder="Receiver Name">
+<input type="text" id="upi" placeholder="Receiver UPI ID">
+<input type="number" id="amount" placeholder="Amount">
+<button class="success" onclick="makePayment()">Pay Now</button>
+<button onclick="showScreen('home')">Back</button>
+</div>
+
+<!-- PIN SCREEN -->
+<div id="pinScreen" class="screen">
+<h2>Enter UPI PIN</h2>
+
+<div style="text-align:center;margin:15px 0;">
+<span class="dot" id="d1"></span>
+<span class="dot" id="d2"></span>
+<span class="dot" id="d3"></span>
+<span class="dot" id="d4"></span>
+</div>
+
+<div class="numpad">
+<button onclick="press(1)">1</button>
+<button onclick="press(2)">2</button>
+<button onclick="press(3)">3</button>
+<button onclick="press(4)">4</button>
+<button onclick="press(5)">5</button>
+<button onclick="press(6)">6</button>
+<button onclick="press(7)">7</button>
+<button onclick="press(8)">8</button>
+<button onclick="press(9)">9</button>
+<button onclick="clearPin()">⌫</button>
+<button onclick="press(0)">0</button>
+<button onclick="cancelPin()">✖</button>
+</div>
+</div>
+
+<!-- PROCESSING -->
+<div id="processing" class="screen">
+<h2>Processing Payment</h2>
+<div class="loader"></div>
+<p>Please wait...</p>
+</div>
+
+<!-- SUCCESS -->
+<div id="success" class="screen">
+<h2>✅ Payment Successful</h2>
+<div class="card">
+<p><b>Receiver:</b> <span id="sReceiver"></span></p>
+<p><b>UPI ID:</b> <span id="sUpi"></span></p>
+<p><b>Amount:</b> ₹<span id="sAmount"></span></p>
+<p><b>Transaction ID:</b> <span id="sTxn"></span></p>
+<p><b>Date & Time:</b> <span id="sDate"></span></p>
+</div>
+<button onclick="showScreen('home')">Home</button>
+</div>
+
+<!-- HISTORY -->
+<div id="history" class="screen">
+<h2>Transaction History</h2>
+<div id="historyList"></div>
+<button onclick="showScreen('home')">Back</button>
+</div>
+
+</div>
 
 <script>
-let timeLeft = 90;
-let wallet = 1000;
-let selectedColor = null;
 
-function placeBet(color){
-    selectedColor = color;
-    document.getElementById("result").innerText = "You selected: " + color;
+let balance = localStorage.getItem("balance") ? 
+parseFloat(localStorage.getItem("balance")) : 1000000;
+
+let transactions = JSON.parse(localStorage.getItem("transactions")) || [];
+let tempPayment=null;
+let enteredPin="";
+
+if(localStorage.getItem("loggedIn")==="true"){
+showScreen("home");
 }
 
-function startTimer(){
-    setInterval(() => {
-        timeLeft--;
-        document.getElementById("time").innerText = timeLeft;
+document.getElementById("balance").innerText=balance;
 
-        if(timeLeft <= 0){
-            runRound();
-            timeLeft = 30;
-        }
-    }, 1000);
+function showScreen(id){
+document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+document.getElementById(id).classList.add("active");
 }
 
-function runRound(){
-    const colors = ["Red", "Green", "Violet"];
-    const result = colors[Math.floor(Math.random() * colors.length)];
-
-    if(selectedColor === result){
-        wallet += 200;
-        document.getElementById("result").innerText = "Result: " + result + " 🎉 You Won!";
-    } else {
-        wallet -= 100;
-        document.getElementById("result").innerText = "Result: " + result + " ❌ You Lost!";
-    }
-
-    document.getElementById("wallet").innerText = wallet;
-    selectedColor = null;
+function login(){
+if(username.value==="user" && password.value==="1234"){
+localStorage.setItem("loggedIn","true");
+showScreen("home");
+}else{
+alert("Use user / 1234");
+}
 }
 
-startTimer();
+function logout(){
+localStorage.removeItem("loggedIn");
+showScreen("login");
+}
+
+function makePayment(){
+let receiver=receiver.value;
+let upi=upi.value;
+let amount=parseFloat(amount.value);
+
+if(!receiver||!upi||!amount){alert("Fill all fields");return;}
+if(amount>balance){alert("Insufficient balance");return;}
+
+tempPayment={receiver,upi,amount};
+enteredPin="";
+updateDots();
+showScreen("pinScreen");
+}
+
+function press(num){
+if(enteredPin.length<4){
+enteredPin+=num;
+updateDots();
+}
+if(enteredPin.length===4){
+setTimeout(checkPin,300);
+}
+}
+
+function clearPin(){
+enteredPin=enteredPin.slice(0,-1);
+updateDots();
+}
+
+function cancelPin(){
+enteredPin="";
+updateDots();
+showScreen("send");
+}
+
+function updateDots(){
+for(let i=1;i<=4;i++){
+document.getElementById("d"+i).classList.remove("filled");
+}
+for(let i=0;i<enteredPin.length;i++){
+document.getElementById("d"+(i+1)).classList.add("filled");
+}
+}
+
+function checkPin(){
+if(enteredPin==="1234"){
+showScreen("processing");
+setTimeout(completePayment,2000);
+}else{
+alert("Wrong PIN");
+enteredPin="";
+updateDots();
+}
+}
+
+function completePayment(){
+balance-=tempPayment.amount;
+localStorage.setItem("balance",balance);
+
+let txnId="TXN"+Math.floor(Math.random()*100000000000);
+let date=new Date().toLocaleString();
+
+let txn={
+receiver:tempPayment.receiver,
+upi:tempPayment.upi,
+amount:tempPayment.amount,
+txnId,
+date
+};
+
+transactions.push(txn);
+localStorage.setItem("transactions",JSON.stringify(transactions));
+
+sReceiver.innerText=txn.receiver;
+sUpi.innerText=txn.upi;
+sAmount.innerText=txn.amount;
+sTxn.innerText=txn.txnId;
+sDate.innerText=txn.date;
+
+document.getElementById("balance").innerText=balance;
+showScreen("success");
+}
+
+function viewHistory(){
+let list=document.getElementById("historyList");
+list.innerHTML="";
+transactions.slice().reverse().forEach(t=>{
+list.innerHTML+=`
+<div class="historyCard">
+<b>${t.receiver}</b> (₹${t.amount})<br>
+${t.upi}<br>
+${t.txnId}<br>
+${t.date}
+</div>`;
+});
+showScreen("history");
+}
+
 </script>
 
 </body>
